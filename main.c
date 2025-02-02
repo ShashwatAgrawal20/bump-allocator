@@ -48,16 +48,17 @@ int main() {
         strcpy(player->name, "Player1");
         printf("Created player at %.1f, %.1f\n", player->x, player->y);
 
-        Entity *enemies = stack_alloc(&frame_allocator, 203 * sizeof(Entity));
+        Entity *enemies = stack_alloc(&frame_allocator, 69 * sizeof(Entity));
         if (!enemies) {
             fprintf(stderr, "DO NOT TRY TO OVERFLOW THE BUFFER KID\n");
             return 1;
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 69; ++i) {
             enemies[i].x = i * 50.0f;
             enemies[i].y = i * 30.0f;
             sprintf(enemies[i].name, "Enemy%d", i);
-            printf("Created enemy at %.1f, %.1f\n", enemies[i].x, enemies[i].y);
+            printf("Created %d enemy at %.1f, %.1f\n", i + 1, enemies[i].x,
+                   enemies[i].y);
         }
 
         frame_allocator.current_offset = 0;
