@@ -36,13 +36,12 @@ typedef struct {
     char name[32];
 } Entity;
 
-double run_stack_benchmark(int num_frames, int num_entities) {
+double run_stack_benchmark(StackAllocator *allocator, int num_frames,
+                           int num_entities, char (*enemy_names)[32]) {
     clock_t start = clock();
-    StackAllocator frame_allocator;
-    init_allocator(&frame_allocator);
 
     for (int frame = 0; frame < num_frames; frame++) {
-        Entity *player = stack_alloc(&frame_allocator, sizeof(Entity));
+        Entity *player = stack_alloc(allocator, sizeof(Entity));
         if (!player) {
             fprintf(stderr, "Stack allocation failed for player\n");
             return -1;
@@ -50,10 +49,9 @@ double run_stack_benchmark(int num_frames, int num_entities) {
 
         player->x = 100.0f;
         player->y = 200.0f;
-        strcpy(player->name, "Player1");
+        memcpy(player->name, "Player1", 8);
 
-        Entity *enemies =
-            stack_alloc(&frame_allocator, num_entities * sizeof(Entity));
+        Entity *enemies = stack_alloc(allocator, num_entities * sizeof(Entity));
         if (!enemies) {
             fprintf(stderr, "Stack allocation failed for enemies\n");
             return -1;
@@ -62,17 +60,18 @@ double run_stack_benchmark(int num_frames, int num_entities) {
         for (int i = 0; i < num_entities; ++i) {
             enemies[i].x = i * 50.0f;
             enemies[i].y = i * 30.0f;
-            sprintf(enemies[i].name, "Enemy%d", i);
+            memcpy(enemies[i].name, enemy_names[i], 32);
         }
 
-        frame_allocator.current_offset = 0;  // Reset allocator for next frame
+        allocator->current_offset = 0;  // Reset allocator for next frame
     }
 
     clock_t end = clock();
     return ((double)(end - start)) / CLOCKS_PER_SEC;
 }
 
-double run_heap_benchmark(int num_frames, int num_entities) {
+double run_heap_benchmark(int num_frames, int num_entities,
+                          char (*enemy_names)[32]) {
     clock_t start = clock();
 
     for (int frame = 0; frame < num_frames; frame++) {
@@ -84,7 +83,7 @@ double run_heap_benchmark(int num_frames, int num_entities) {
 
         player->x = 100.0f;
         player->y = 200.0f;
-        strcpy(player->name, "Player1");
+        memcpy(player->name, "Player1", 8);
 
         Entity *enemies = (Entity *)malloc(num_entities * sizeof(Entity));
         if (!enemies) {
@@ -96,7 +95,7 @@ double run_heap_benchmark(int num_frames, int num_entities) {
         for (int i = 0; i < num_entities; ++i) {
             enemies[i].x = i * 50.0f;
             enemies[i].y = i * 30.0f;
-            sprintf(enemies[i].name, "Enemy%d", i);
+            memcpy(enemies[i].name, enemy_names[i], 32);
         }
 
         free(enemies);
@@ -116,14 +115,24 @@ int main() {
 
     srand(time(NULL));
 
+    StackAllocator allocator;
+    init_allocator(&allocator);
+
     for (int i = 0; i < NUM_RUNS; i++) {
         int num_entities =
             MIN_ENTITIES + (rand() % (MAX_ENTITIES - MIN_ENTITIES));
         printf("Configuration: %d frames, %d entities per frame\n", NUM_FRAMES,
                num_entities);
 
-        stack_times[i] = run_stack_benchmark(NUM_FRAMES, num_entities);
-        heap_times[i] = run_heap_benchmark(NUM_FRAMES, num_entities);
+        char enemy_names[num_entities][32];
+        for (int j = 0; j < num_entities; j++) {
+            snprintf(enemy_names[j], 32, "Enemy%d", j);
+        }
+
+        stack_times[i] = run_stack_benchmark(&allocator, NUM_FRAMES,
+                                             num_entities, enemy_names);
+        heap_times[i] =
+            run_heap_benchmark(NUM_FRAMES, num_entities, enemy_names);
 
         printf("Run %d:\n", i + 1);
         printf("  Stack Allocator: %.4f seconds\n", stack_times[i]);
